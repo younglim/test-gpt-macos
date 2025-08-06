@@ -5,7 +5,7 @@ on:
 
 jobs:
   run:
-    runs-on: macos-15  # Apple Silicon runner
+    runs-on: macos-15  # Apple Silicon (M1/M2)
 
     steps:
       - name: Checkout your repo
@@ -24,7 +24,10 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-
 
-      - name: Clone gpt-oss repo
+      - name: Install Hugging Face CLI + dependencies
+        run: pip install 'huggingface_hub[cli]'
+
+      - name: Clone gpt-oss repository
         run: git clone https://github.com/openai/gpt-oss.git
 
       - name: Install gpt-oss with Metal backend
@@ -32,11 +35,8 @@ jobs:
           cd gpt-oss
           pip install .[metal]
           cd ..
-      
-      - name: Install Hugging Face CLI
-        run: pip install huggingface_hub
-  
-      - name: Cache model weights (Metal format)
+
+      - name: Cache GPT-OSS model weights (Metal)
         id: cache-model
         uses: actions/cache@v4
         with:
@@ -47,11 +47,14 @@ jobs:
         if: steps.cache-model.outputs.cache-hit != 'true'
         run: |
           mkdir -p gpt-oss-20b/metal
-          huggingface-cli download openai/gpt-oss-20b \
-            --include "metal/*" \
-            --local-dir gpt-oss-20b/metal
+          for i in {1..3}; do
+            hf download openai/gpt-oss-20b \
+              --include "metal/*" \
+              --local-dir gpt-oss-20b/metal \
+              --repo-type model && break || sleep 10
+          done
 
-      - name: Run GPT-OSS-20B with Metal
+      - name: Run GPT-OSS-20B with Metal backend
         run: |
           python - <<EOF
           from gpt_oss.metal.examples.generate import main
