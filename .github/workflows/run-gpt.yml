@@ -37,13 +37,15 @@ jobs:
           cd ..
 
       - name: Download and extract GPT-OSS Metal weights from latest release
-        env:
-          REPO: ${{ github.repository }}
-        run: |
-          mkdir -p gpt-oss-20b
-          gh release download --repo "$REPO" --pattern "gpt-oss-20b-metal.tar.gz"
-          tar -xzf gpt-oss-20b-metal.tar.gz -C gpt-oss-20b
-          ls -lh gpt-oss-20b/metal/model.bin
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            REPO: ${{ github.repository }}
+          run: |
+            mkdir -p gpt-oss-20b
+            gh release download --repo "$REPO" --pattern "gpt-oss-20b-metal.tar.gz"
+            tar -xzf gpt-oss-20b-metal.tar.gz -C gpt-oss-20b
+            ls -lh gpt-oss-20b/metal/model.bin
+
 
       - name: Run GPT-OSS-20B with Metal backend
         run: |
