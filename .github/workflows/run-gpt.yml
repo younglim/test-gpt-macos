@@ -1,4 +1,4 @@
-name: GPT-OSS via Hugging Face Inference API
+name: GPT‑OSS 20B via OpenRouter API (Node.js)
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout your repo
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -17,27 +17,29 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm install openai
+        run: npm install openai axios
 
-      - name: Call GPT-OSS 20B via Hugging Face API
+      - name: Call GPT‑OSS via OpenRouter
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           node <<'EOF'
-          import OpenAI from "openai";
+import OpenAI from "openai";
+import axios from "axios";
 
-          const client = new OpenAI({
-            baseURL: "https://router.huggingface.co/v1",
-            apiKey: process.env.HF_TOKEN,
-          });
+const client = new OpenAI({
+  baseURL: "https://api.openrouter.ai/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
 
-          const main = async () => {
-            const chatCompletion = await client.chat.completions.create({
-              model: "openai/gpt-oss-20b:cerebras",
-              messages: [{ role: "user", content: "Hello from GitHub Actions" }],
-            });
-            console.log(chatCompletion.choices[0].message.content);
-          };
+async function main() {
+  const res = await client.chat.completions.create({
+    model: "openai/gpt-oss-20b",
+    messages: [{ role: "user", content: "Hello from CI via OpenRouter!" }],
+    max_new_tokens: 64,
+  });
+  console.log(res.choices[0].message.content);
+}
 
-          main().catch(console.error);
-          EOF
+main().catch(console.error);
+EOF
