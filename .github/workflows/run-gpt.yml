@@ -36,28 +36,36 @@ jobs:
           pip install .[metal]
           cd ..
 
-      - name: Cache GPT-OSS model weights (Metal)
+      - name: Cache GPT-OSS model weight parts
         id: cache-model
         uses: actions/cache@v4
         with:
-          path: gpt-oss-20b/metal
-          key: hf-gpt-oss-20b-metal-v1
+          path: gpt-oss-20b/metal/parts
+          key: gpt-oss-metal-parts-v1
 
-      - name: Download Metal weights (if cache miss)
+      - name: Download and split model weights (if cache miss)
         if: steps.cache-model.outputs.cache-hit != 'true'
         run: |
           mkdir -p gpt-oss-20b/metal
-          for i in {1..3}; do
-            hf download openai/gpt-oss-20b \
-              --include "metal/*" \
-              --local-dir gpt-oss-20b/metal \
-              --repo-type model && break || sleep 10
-          done
+          hf download openai/gpt-oss-20b \
+            --include "metal/model.bin" \
+            --repo-type model \
+            --local-dir gpt-oss-20b/metal
+
+          mkdir -p gpt-oss-20b/metal/parts
+          split -b 1900m gpt-oss-20b/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
+          rm gpt-oss-20b/metal/model.bin
+
+      - name: Reconstruct model.bin from cached parts
+        run: |
+          mkdir -p gpt-oss-20b/metal
+          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/model.bin
+          ls -lh gpt-oss-20b/metal/model.bin
 
       - name: Run GPT-OSS-20B with Metal backend
         run: |
           cd gpt-oss
           python - <<EOF
-          from gpt_oss.metal.examples.generate import main
-          main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
-          EOF
+from gpt_oss.metal.examples.generate import main
+main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
+EOF
