@@ -1,0 +1,51 @@
+name: Run GPT Model on macOS with Cache
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: macos-15  # Apple Silicon runner
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install Python dependencies
+        run: |
+          pip install gpt-oss[metal] huggingface-hub
+
+      - name: Cache GPT-OSS-20B model weights
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: gpt-oss-20b/metal
+          key: hf-oss-20b-metal-v1
+
+      - name: Download model weights (if cache missed)
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p gpt-oss-20b/metal
+          huggingface-cli download openai/gpt-oss-20b \
+            --include "metal/*" \
+            --local-dir gpt-oss-20b/metal
+
+      - name: Run GPT inference
+        run: |
+          python - <<EOF
+          from gpt_oss.metal.examples.generate import main
+          main('gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
+          EOF
