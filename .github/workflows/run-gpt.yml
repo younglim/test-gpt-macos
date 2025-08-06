@@ -8,7 +8,7 @@ jobs:
     runs-on: macos-15  # Apple Silicon runner
 
     steps:
-      - name: Checkout repo
+      - name: Checkout your repo
         uses: actions/checkout@v4
 
       - name: Set up Python 3.11
@@ -24,18 +24,23 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-
 
-      - name: Install Python dependencies
-        run: |
-          pip install gpt-oss[metal] huggingface-hub
+      - name: Clone gpt-oss repo
+        run: git clone https://github.com/openai/gpt-oss.git
 
-      - name: Cache GPT-OSS-20B model weights
+      - name: Install gpt-oss with Metal backend
+        run: |
+          cd gpt-oss
+          pip install .[metal]
+          cd ..
+
+      - name: Cache model weights (Metal format)
         id: cache-model
         uses: actions/cache@v4
         with:
           path: gpt-oss-20b/metal
-          key: hf-oss-20b-metal-v1
+          key: hf-gpt-oss-20b-metal-v1
 
-      - name: Download model weights (if cache missed)
+      - name: Download Metal weights (if cache miss)
         if: steps.cache-model.outputs.cache-hit != 'true'
         run: |
           mkdir -p gpt-oss-20b/metal
@@ -43,7 +48,7 @@ jobs:
             --include "metal/*" \
             --local-dir gpt-oss-20b/metal
 
-      - name: Run GPT inference
+      - name: Run GPT-OSS-20B with Metal
         run: |
           python - <<EOF
           from gpt_oss.metal.examples.generate import main
