@@ -5,10 +5,10 @@ on:
 
 jobs:
   run:
-    runs-on: macos-15  # Apple Silicon (M1/M2)
+    runs-on: macos-15  # Apple Silicon
 
     steps:
-      - name: Checkout your repo
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set up Python 3.12
@@ -24,32 +24,43 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-
 
-      - name: Install dependencies
-        run: pip install 'huggingface_hub[cli]'
-
-      - name: Clone gpt-oss repository
-        run: git clone https://github.com/openai/gpt-oss.git
-
-      - name: Install gpt-oss with Metal backend
+      - name: Install inference dependencies
         run: |
-          cd gpt-oss
-          pip install .[metal]
-          cd ..
+          pip install transformers kernels torch accelerate
 
-      - name: Download and extract GPT-OSS Metal weights from latest release
+      - name: Cache split model weight parts
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: gpt-oss-20b/metal/parts
+          key: gpt-oss-metal-parts-v1
+
+      - name: Download and split model weights (if cache miss)
+        if: steps.cache-model.outputs.cache-hit != 'true'
         run: |
-          mkdir -p gpt-oss-20b
-          gh release download --repo "$REPO" --pattern "gpt-oss-20b-metal.tar.gz"
-          tar -xzf gpt-oss-20b-metal.tar.gz -C gpt-oss-20b
+          mkdir -p gpt-oss-20b/metal
+          curl -L -o gpt-oss-20b/metal/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
+          mkdir -p gpt-oss-20b/metal/parts
+          split -b 1900m gpt-oss-20b/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
+          rm gpt-oss-20b/metal/model.bin
+
+      - name: Reconstruct model.bin from cached parts
+        run: |
+          mkdir -p gpt-oss-20b/metal
+          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/model.bin
           ls -lh gpt-oss-20b/metal/model.bin
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          
-      - name: Run GPT-OSS-20B with Metal backend
+
+      - name: Run inference using Hugging Face Transformers
         run: |
-          cd gpt-oss
           python - <<EOF
-          from gpt_oss.metal.examples.generate import main
-          main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
-          EOF
+          from transformers import pipeline
+          pipe = pipeline(
+              "text-generation",
+              model="openai/gpt-oss-20b",
+              torch_dtype="auto",
+              device_map="auto",
+          )
+          messages = [{"role": "user", "content": "Hello from GitHub Actions"}]
+outputs = pipe(messages, max_new_tokens=64)
+print(outputs[0]["generated_text"])
+EOF
