@@ -32,7 +32,10 @@ jobs:
           cd gpt-oss
           pip install .[metal]
           cd ..
-
+      
+      - name: Install Hugging Face CLI
+        run: pip install huggingface_hub
+  
       - name: Cache model weights (Metal format)
         id: cache-model
         uses: actions/cache@v4
