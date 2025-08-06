@@ -61,6 +61,6 @@ jobs:
               device_map="auto",
           )
           messages = [{"role": "user", "content": "Hello from GitHub Actions"}]
-outputs = pipe(messages, max_new_tokens=64)
-print(outputs[0]["generated_text"])
-EOF
+          outputs = pipe(messages, max_new_tokens=64)
+          print(outputs[0]["generated_text"])
+          EOF
