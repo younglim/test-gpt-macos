@@ -24,22 +24,22 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           node <<'EOF'
-import OpenAI from "openai";
-import axios from "axios";
-
-const client = new OpenAI({
-  baseURL: "https://api.openrouter.ai/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
-
-async function main() {
-  const res = await client.chat.completions.create({
-    model: "openai/gpt-oss-20b",
-    messages: [{ role: "user", content: "Hello from CI via OpenRouter!" }],
-    max_new_tokens: 64,
-  });
-  console.log(res.choices[0].message.content);
-}
-
-main().catch(console.error);
-EOF
+          import OpenAI from "openai";
+          import axios from "axios";
+          
+          const client = new OpenAI({
+            baseURL: "https://api.openrouter.ai/v1",
+            apiKey: process.env.OPENROUTER_API_KEY,
+          });
+          
+          async function main() {
+            const res = await client.chat.completions.create({
+              model: "openai/gpt-oss-20b",
+              messages: [{ role: "user", content: "Hello from CI via OpenRouter!" }],
+              max_new_tokens: 64,
+            });
+            console.log(res.choices[0].message.content);
+          }
+          
+          main().catch(console.error);
+          EOF
