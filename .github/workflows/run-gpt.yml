@@ -1,11 +1,11 @@
-name: Run GPT Model on macOS with Cache
+name: Run GPT Model on macOS with Prepackaged Weights
 
 on:
   workflow_dispatch:
 
 jobs:
   run:
-    runs-on: macos-15  # Apple Silicon
+    runs-on: macos-15  # Apple Silicon (M1/M2)
 
     steps:
       - name: Checkout your repo
@@ -24,7 +24,7 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-
 
-      - name: Install Hugging Face CLI + dependencies
+      - name: Install dependencies
         run: pip install 'huggingface_hub[cli]'
 
       - name: Clone gpt-oss repository
@@ -36,36 +36,17 @@ jobs:
           pip install .[metal]
           cd ..
 
-      - name: Cache GPT-OSS model weight parts
-        id: cache-model
-        uses: actions/cache@v4
-        with:
-          path: gpt-oss-20b/metal/parts
-          key: gpt-oss-metal-parts-v1
-
-      - name: Download and split model weights (if cache miss)
-        if: steps.cache-model.outputs.cache-hit != 'true'
+      - name: Download prepackaged model weights
         run: |
-          mkdir -p gpt-oss-20b/metal
-          hf download openai/gpt-oss-20b \
-            --include "metal/model.bin" \
-            --repo-type model \
-            --local-dir gpt-oss-20b/metal
-
-          mkdir -p gpt-oss-20b/metal/parts
-          split -b 1900m gpt-oss-20b/metal/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
-          rm gpt-oss-20b/metal/metal/model.bin
-
-      - name: Reconstruct model.bin from cached parts
-        run: |
-          mkdir -p gpt-oss-20b/metal/metal
-          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/metal/model.bin
-          ls -lh gpt-oss-20b/metal/metal/model.bin
+          mkdir -p gpt-oss-20b
+          curl -L -o gpt-oss-20b-metal.tar.gz https://github.com/<your-org>/<your-repo>/releases/download/v1/gpt-oss-20b-metal.tar.gz
+          tar -xzf gpt-oss-20b-metal.tar.gz -C gpt-oss-20b
+          ls -lh gpt-oss-20b/metal/model.bin
 
       - name: Run GPT-OSS-20B with Metal backend
         run: |
           cd gpt-oss
           python - <<EOF
           from gpt_oss.metal.examples.generate import main
-          main('../gpt-oss-20b/metal/metal/model.bin', prompt="Hello from GitHub Actions!")
+          main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
           EOF
