@@ -1,66 +1,43 @@
-name: Run GPT Model on macOS with Prepackaged Weights
+name: GPT-OSS via Hugging Face Inference API
 
 on:
   workflow_dispatch:
 
 jobs:
   run:
-    runs-on: macos-15  # Apple Silicon
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout your repo
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.12'
+          node-version: 20
 
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            pip-${{ runner.os }}-
+      - name: Install dependencies
+        run: npm install openai
 
-      - name: Install inference dependencies
+      - name: Call GPT-OSS 20B via Hugging Face API
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          pip install transformers kernels torch accelerate
+          node <<'EOF'
+          import OpenAI from "openai";
 
-      - name: Cache split model weight parts
-        id: cache-model
-        uses: actions/cache@v4
-        with:
-          path: gpt-oss-20b/metal/parts
-          key: gpt-oss-metal-parts-v1
+          const client = new OpenAI({
+            baseURL: "https://router.huggingface.co/v1",
+            apiKey: process.env.HF_TOKEN,
+          });
 
-      - name: Download and split model weights (if cache miss)
-        if: steps.cache-model.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p gpt-oss-20b/metal
-          curl -L -o gpt-oss-20b/metal/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
-          mkdir -p gpt-oss-20b/metal/parts
-          split -b 1900m gpt-oss-20b/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
-          rm gpt-oss-20b/metal/model.bin
+          const main = async () => {
+            const chatCompletion = await client.chat.completions.create({
+              model: "openai/gpt-oss-20b:cerebras",
+              messages: [{ role: "user", content: "Hello from GitHub Actions" }],
+            });
+            console.log(chatCompletion.choices[0].message.content);
+          };
 
-      - name: Reconstruct model.bin from cached parts
-        run: |
-          mkdir -p gpt-oss-20b/metal
-          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/model.bin
-          ls -lh gpt-oss-20b/metal/model.bin
-
-      - name: Run inference using Hugging Face Transformers
-        run: |
-          python - <<EOF
-          from transformers import pipeline
-          pipe = pipeline(
-              "text-generation",
-              model="openai/gpt-oss-20b",
-              torch_dtype="auto",
-              device_map="auto",
-          )
-          messages = [{"role": "user", "content": "Hello from GitHub Actions"}]
-          outputs = pipe(messages, max_new_tokens=64)
-          print(outputs[0]["generated_text"])
+          main().catch(console.error);
           EOF
