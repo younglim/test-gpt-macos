@@ -46,11 +46,10 @@ jobs:
             tar -xzf gpt-oss-20b-metal.tar.gz -C gpt-oss-20b
             ls -lh gpt-oss-20b/metal/model.bin
 
-
-      - name: Run GPT-OSS-20B with Metal backend
-        run: |
-          cd gpt-oss
-          python - <<EOF
-          from gpt_oss.metal.examples.generate import main
-          main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
-          EOF
+        - name: Run GPT-OSS-20B with Metal backend
+          run: |
+            cd gpt-oss
+            python - <<EOF
+            from gpt_oss.metal.examples.generate import main
+            main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
+            EOF
