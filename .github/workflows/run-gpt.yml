@@ -36,10 +36,12 @@ jobs:
           pip install .[metal]
           cd ..
 
-      - name: Download prepackaged model weights
+      - name: Download and extract GPT-OSS Metal weights from latest release
+        env:
+          REPO: ${{ github.repository }}
         run: |
           mkdir -p gpt-oss-20b
-          curl -L -o gpt-oss-20b-metal.tar.gz https://github.com/<your-org>/<your-repo>/releases/download/v1/gpt-oss-20b-metal.tar.gz
+          gh release download --repo "$REPO" --pattern "gpt-oss-20b-metal.tar.gz"
           tar -xzf gpt-oss-20b-metal.tar.gz -C gpt-oss-20b
           ls -lh gpt-oss-20b/metal/model.bin
 
