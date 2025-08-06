@@ -5,7 +5,7 @@ on:
 
 jobs:
   run:
-    runs-on: macos-15  # Apple Silicon (M1/M2)
+    runs-on: macos-15  # Apple Silicon
 
     steps:
       - name: Checkout your repo
@@ -53,19 +53,19 @@ jobs:
             --local-dir gpt-oss-20b/metal
 
           mkdir -p gpt-oss-20b/metal/parts
-          split -b 1900m gpt-oss-20b/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
-          rm gpt-oss-20b/metal/model.bin
+          split -b 1900m gpt-oss-20b/metal/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
+          rm gpt-oss-20b/metal/metal/model.bin
 
       - name: Reconstruct model.bin from cached parts
         run: |
-          mkdir -p gpt-oss-20b/metal
-          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/model.bin
-          ls -lh gpt-oss-20b/metal/model.bin
+          mkdir -p gpt-oss-20b/metal/metal
+          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/metal/model.bin
+          ls -lh gpt-oss-20b/metal/metal/model.bin
 
       - name: Run GPT-OSS-20B with Metal backend
         run: |
           cd gpt-oss
           python - <<EOF
           from gpt_oss.metal.examples.generate import main
-          main('../gpt-oss-20b/metal/model.bin', prompt="Hello from GitHub Actions!")
+          main('../gpt-oss-20b/metal/metal/model.bin', prompt="Hello from GitHub Actions!")
           EOF
