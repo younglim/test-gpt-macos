@@ -1,0 +1,44 @@
+name: Convert model.bin to GGUF
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convert-and-split:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout llama.cpp
+        run: |
+          git clone https://github.com/ggerganov/llama.cpp.git
+          cd llama.cpp
+          make
+
+      - name: Download model files
+        run: |
+          mkdir -p model
+          curl -L -o model/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
+          curl -L -o model/config.json https://huggingface.co/openai/gpt-oss-20b/resolve/main/config.json
+          curl -L -o model/tokenizer.json https://huggingface.co/openai/gpt-oss-20b/resolve/main/tokenizer.json
+          curl -L -o model/tokenizer_config.json https://huggingface.co/openai/gpt-oss-20b/resolve/main/tokenizer_config.json
+
+      - name: Convert to GGUF
+        run: |
+          cd llama.cpp
+          python3 convert.py \
+            --outfile ../model/converted.gguf \
+            --outtype q4_0 \
+            --vocab-dir ../model \
+            ../model/model.bin \
+            ../model/config.json
+
+      - name: Split .gguf into 2GB parts
+        run: |
+          cd model
+          split -b 2000M converted.gguf converted.gguf.part_
+
+      - name: Upload split GGUF parts
+        uses: actions/upload-artifact@v4
+        with:
+          name: converted-gguf-parts
+          path: model/converted.gguf.part_*
