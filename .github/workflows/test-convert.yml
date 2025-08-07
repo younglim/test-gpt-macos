@@ -25,34 +25,34 @@ jobs:
       - name: Convert and bundle into .task
         run: |
           python - <<EOF
-import mediapipe as mp
-from mediapipe.tasks.python.genai import converter, bundler
-from mediapipe.tasks.python.genai.converter import ConversionConfig
-
-# Conversion step
-cfg = ConversionConfig(
-    input_ckpt='model/model.bin',
-    ckpt_format='pytorch',
-    model_type='YOUR_MODEL_TYPE',
-    backend='cpu',
-    output_dir='model/',
-    combine_file_only=False,
-    vocab_model_file='model/',
-    output_tflite_file='model/model.tflite',
-)
-converter.convert_checkpoint(cfg)
-
-# Bundling step
-bundle_cfg = bundler.BundleConfig(
-    tflite_model='model/model.tflite',
-    tokenizer_model='model/tokenizer.model',
-    start_token='<bos>',
-    stop_tokens=['<eos>'],
-    output_filename='model/model.task',
-    enable_bytes_to_unicode_mapping=True,
-)
-bundler.create_bundle(bundle_cfg)
-EOF
+          import mediapipe as mp
+          from mediapipe.tasks.python.genai import converter, bundler
+          from mediapipe.tasks.python.genai.converter import ConversionConfig
+          
+          # Conversion step
+          cfg = ConversionConfig(
+              input_ckpt='model/model.bin',
+              ckpt_format='pytorch',
+              model_type='YOUR_MODEL_TYPE',
+              backend='cpu',
+              output_dir='model/',
+              combine_file_only=False,
+              vocab_model_file='model/',
+              output_tflite_file='model/model.tflite',
+          )
+          converter.convert_checkpoint(cfg)
+          
+          # Bundling step
+          bundle_cfg = bundler.BundleConfig(
+              tflite_model='model/model.tflite',
+              tokenizer_model='model/tokenizer.model',
+              start_token='<bos>',
+              stop_tokens=['<eos>'],
+              output_filename='model/model.task',
+              enable_bytes_to_unicode_mapping=True,
+          )
+          bundler.create_bundle(bundle_cfg)
+          EOF
 
       - name: Upload .task artifact
         uses: actions/upload-artifact@v4
