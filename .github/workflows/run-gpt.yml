@@ -1,4 +1,4 @@
-name: Llama‑4 Scout Inference
+name: GitHub Models Inference
 
 on:
   workflow_dispatch:
