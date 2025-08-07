@@ -8,11 +8,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout llama.cpp
+      - name: Build llama.cpp with CMake
         run: |
-          git clone https://github.com/ggerganov/llama.cpp.git
           cd llama.cpp
-          make
+          mkdir build && cd build
+          cmake ..
+          cmake --build . --config Release
 
       - name: Download model files
         run: |
