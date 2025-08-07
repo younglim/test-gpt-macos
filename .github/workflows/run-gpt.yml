@@ -57,8 +57,10 @@ jobs:
           pipe = pipeline(
               "text-generation",
               model="openai/gpt-oss-20b",
-              torch_dtype="auto",
-              device_map="auto",
+          #     torch_dtype="auto",
+          #     device_map="auto",
+              torch_dtype="float32",
+              device_map="cpu",
           )
           messages = [{"role": "user", "content": "Hello from GitHub Actions"}]
           outputs = pipe(messages, max_new_tokens=64)
