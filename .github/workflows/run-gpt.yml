@@ -18,7 +18,7 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Content-Type: application/json" \
             -d '{
-              "model": "Llama-4-Scout-17B-16E-Instruct",
+              "model": "Llama-3-3-70B-Instruct",
               "messages": [
                 { "role": "user", "content": "Explain the benefits of GitHub Models for CI workflows." }
               ],
