@@ -44,9 +44,9 @@ jobs:
           try:
               sys.path.insert(0, 'scripts')
               from convert import main
-              sys.argv = ['convert.py', '--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
+              sys.argv = ['--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
               main()
           except Exception as e:
               print(f"Expected failure (missing files): {e}")
           EOF
-          python test_convert.py          
+              python test_convert.py   
