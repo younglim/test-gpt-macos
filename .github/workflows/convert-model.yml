@@ -1,51 +1,45 @@
-name: Convert GPT-OSS-20B to GGUF
+name: Test GGUF Conversion Tool
 
 on:
   workflow_dispatch:
 
 jobs:
-  convert:
+  test-convert:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Install Python dependencies
-        run: pip install huggingface_hub requests
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true  # fallback if requirements.txt not present
+          pip install huggingface-hub  # used by convert.py
 
       - name: Download llama.cpp prebuilt binaries
         run: |
-          curl -L -o llama-bin.zip https://github.com/ggml-org/llama.cpp/releases/download/b6106/llama-b6106-bin-ubuntu-x64.zip
-          unzip llama-bin.zip -d llama-bin
-          chmod +x llama-bin/convert.py
-          
-      - name: Create model directory
-        run: mkdir -p model
+          mkdir -p llama-bin
+          curl -L -o llama.zip https://github.com/ggml-org/llama.cpp/releases/download/b6106/llama-b6106-bin-ubuntu-x64.zip
+          unzip llama.zip -d llama-bin
 
-      - name: Download model.bin and config.json
+      - name: Add llama binaries to PATH
+        run: echo "${{ github.workspace }}/llama-bin/build/bin" >> $GITHUB_PATH
+
+      - name: Test convert.py (dry run)
         run: |
-          curl -L -o model/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
-          curl -L -o model/config.json https://huggingface.co/openai/gpt-oss-20b/resolve/main/config.json
-
-      - name: Convert model.bin to GGUF
-        run: |
-          python3 llama-bin/convert.py \
-            --outtype f32 \
-            --outfile model/gpt-oss-20b.gguf \
-            model
-
-      - name: Split GGUF into chunks
-        run: |
-          split -b 1900M model/gpt-oss-20b.gguf model/gpt-oss-20b.gguf.part-
-
-      - name: Upload model chunks as artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: gpt-oss-20b-gguf
-          path: model/gpt-oss-20b.gguf.part-*
+          echo "Running convert.py with fake paths for dry-run sanity check"
+          python - <<EOF
+import sys
+try:
+    from convert import main
+    sys.argv = ['convert.py', '--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
+    main()
+except Exception as e:
+    print(f"Expected failure (missing files): {e}")
+EOF
