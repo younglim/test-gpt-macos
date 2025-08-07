@@ -32,10 +32,17 @@ jobs:
       - name: Download convert_hf_to_gguf.py
         run: curl -L -o convert_hf_to_gguf.py https://raw.githubusercontent.com/ggml-org/llama.cpp/master/convert_hf_to_gguf.py
       
-      - name: Patch convert_hf_to_gguf.py unsupported model_arch values
+      - name: Patch convert_hf_to_gguf.py to use only GPTJ
         run: |
-          sed -i 's/model_arch = gguf.MODEL_ARCH.DREAM/model_arch = gguf.MODEL_ARCH.GPTJ/' convert_hf_to_gguf.py
-          sed -i 's/model_arch = gguf.MODEL_ARCH.LLADA/model_arch = gguf.MODEL_ARCH.GPTJ/' convert_hf_to_gguf.py
+          # Keep GPTJ only, delete all others
+          awk '
+            BEGIN { keep = 1 }
+            /^class / {
+              keep = /GPTJModel/
+            }
+            { if (keep) print }
+          ' convert_hf_to_gguf.py > convert_hf_to_gguf.patched.py
+          mv convert_hf_to_gguf.patched.py convert_hf_to_gguf.py
 
       - name: Dry-run conversion (sanity check)
         run: |
