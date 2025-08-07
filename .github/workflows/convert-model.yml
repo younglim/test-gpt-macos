@@ -8,6 +8,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install libcurl
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+
       - name: Clone llama.cpp
         run: |
           git clone https://github.com/ggerganov/llama.cpp.git
