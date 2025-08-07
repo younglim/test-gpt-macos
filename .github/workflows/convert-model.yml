@@ -35,11 +35,11 @@ jobs:
         run: |
           echo "Running convert.py with fake paths for dry-run sanity check"
           python - <<EOF
-import sys
-try:
-    from convert import main
-    sys.argv = ['convert.py', '--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
-    main()
-except Exception as e:
-    print(f"Expected failure (missing files): {e}")
-EOF
+            import sys
+            try:
+                from convert import main
+                sys.argv = ['convert.py', '--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
+                main()
+            except Exception as e:
+                print(f"Expected failure (missing files): {e}")
+            EOF
