@@ -1,68 +1,29 @@
-name: Run GPT Model on macOS with Prepackaged Weights
+name: Llama-4 Scout Inference
 
 on:
   workflow_dispatch:
 
+permissions:
+  models: read  # required to use GitHub Models API
+
 jobs:
-  run:
-    runs-on: macos-15  # Apple Silicon
+  llama4-inference:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            pip-${{ runner.os }}-
-
-      - name: Install inference dependencies
+      - name: Run inference with Llama-4 Scout
         run: |
-          pip install transformers kernels torch accelerate
-
-      - name: Cache split model weight parts
-        id: cache-model
-        uses: actions/cache@v4
-        with:
-          path: gpt-oss-20b/metal/parts
-          key: gpt-oss-metal-parts-v1
-
-      - name: Download and split model weights (if cache miss)
-        if: steps.cache-model.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p gpt-oss-20b/metal
-          curl -L -o gpt-oss-20b/metal/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
-          mkdir -p gpt-oss-20b/metal/parts
-          split -b 1900m gpt-oss-20b/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
-          rm gpt-oss-20b/metal/model.bin
-
-      - name: Reconstruct model.bin from cached parts
-        run: |
-          mkdir -p gpt-oss-20b/metal
-          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/model.bin
-          ls -lh gpt-oss-20b/metal/model.bin
-
-      - name: Run inference using Hugging Face Transformers
-        run: |
-          python - <<EOF
-          from transformers import pipeline
-          pipe = pipeline(
-              "text-generation",
-              model="openai/gpt-oss-20b",
-          #     torch_dtype="auto",
-          #     device_map="auto",
-              torch_dtype="float32",
-              device_map="cpu",
-          )
-          messages = [{"role": "user", "content": "Hello from GitHub Actions"}]
-          outputs = pipe(messages, max_new_tokens=64)
-          print(outputs[0]["generated_text"])
-          EOF
+          echo "Sending prompt to Llama-4 Scout 17B..."
+          curl -s https://models.github.ai/inference/chat/completions \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "azureml-meta/Llama-4-Scout-17B-16E-Instruct",
+              "messages": [
+                {"role": "user", "content": "Summarize the benefits of using GitHub Models in CI workflows."}
+              ],
+              "temperature": 0.7,
+              "max_tokens": 300
+            }' | jq
