@@ -1,46 +1,69 @@
-name: Test GGUF Conversion Tool
+name: Convert Hugging Face Model (.bin) to GGUF
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
-  test-convert:
+  convert:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt || true  # fallback if requirements.txt not present
-          pip install huggingface-hub  # used by convert.py
+          pip install --upgrade pip
+          # Install llama.cpp converter dependencies
+          pip install -r https://raw.githubusercontent.com/ggml-org/llama.cpp/master/requirements/requirements-convert_hf_to_gguf.txt
 
       - name: Download llama.cpp prebuilt binaries
         run: |
           mkdir -p llama-bin
-          curl -L -o llama.zip https://github.com/ggml-org/llama.cpp/releases/download/b6106/llama-b6106-bin-ubuntu-x64.zip
-          unzip llama.zip -d llama-bin
+          curl -L -o llama-bin/llama.zip https://github.com/ggml-org/llama.cpp/releases/download/b6106/llama-b6106-bin-ubuntu-x64.zip
+          unzip llama-bin/llama.zip -d llama-bin
 
       - name: Add llama binaries to PATH
         run: echo "${{ github.workspace }}/llama-bin/build/bin" >> $GITHUB_PATH
 
-      - name: Download convert.py
+      - name: Download model.bin and config.json
         run: |
-          mkdir -p scripts
-          curl -L -o scripts/convert.py https://raw.githubusercontent.com/ggml-org/llama.cpp/master/scripts/convert.py
-      
-      - name: Dry-run convert.py with fake paths
-        run: |
-          echo "Running convert.py with fake paths for dry-run sanity check"
-          python scripts/convert.py \
-            --outfile test.gguf \
-            --config config.json \
-            --checkpoint model/model.bin || echo "Expected failure: ok"
+          mkdir -p model
+          curl -L -o model/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
+          curl -L -o model/config.json https://huggingface.co/openai/gpt-oss-20b/resolve/main/config.json
 
+      - name: Dry-run conversion (sanity check)
+        run: |
+          echo "Testing convert_hf_to_gguf script (expected to fail due to missing files)..."
+          python - <<EOF
+          import sys
+          sys.argv = ["convert_hf_to_gguf.py", "--outfile", "test.gguf", "model"]
+          from convert_hf_to_gguf import main as convert_main
+          try:
+              convert_main()
+          except Exception as e:
+              print("Expected failure:", e)
+          EOF
+
+      - name: Convert model to GGUF
+        run: |
+          echo "Converting model to GGUF..."
+          python convert_hf_to_gguf.py model --outfile model/model.gguf --outtype f16
+
+      - name: Split GGUF if large
+        run: |
+          mkdir -p split
+          if [ $(du -b model/model.gguf | cut -f1) -gt $((12 * 1024 * 1024 * 1024)) ]; then
+            llama-gguf-split model/model.gguf split/
+          else
+            cp model/model.gguf split/
+          fi
+
+      - name: Upload GGUF parts as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gguf-model-parts
+          path: split/
