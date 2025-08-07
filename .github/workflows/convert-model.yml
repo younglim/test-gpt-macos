@@ -31,15 +31,16 @@ jobs:
       - name: Add llama binaries to PATH
         run: echo "${{ github.workspace }}/llama-bin/build/bin" >> $GITHUB_PATH
 
-      - name: Test convert.py (dry run)
+      - name: Dry-run convert.py to sanity-check CLI
         run: |
           echo "Running convert.py with fake paths for dry-run sanity check"
-          python - <<EOF
-            import sys
-            try:
-                from convert import main
-                sys.argv = ['convert.py', '--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
-                main()
-            except Exception as e:
-                print(f"Expected failure (missing files): {e}")
-            EOF
+          cat << 'EOF' > test_convert.py
+          import sys
+          try:
+              from convert import main
+              sys.argv = ['convert.py', '--outfile', 'test.gguf', '--config', 'config.json', '--checkpoint', 'model/model.bin']
+              main()
+          except Exception as e:
+              print(f"Expected failure (missing files): {e}")
+          EOF
+              python test_convert.py
