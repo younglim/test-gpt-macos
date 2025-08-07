@@ -35,7 +35,7 @@ jobs:
       - name: Dry-run conversion (sanity check)
         run: |
           echo "Testing convert_hf_to_gguf script (expected to fail due to missing files)..."
-          python - <<EOF
+          python - << 'EOF'
           import sys
           sys.argv = ["convert_hf_to_gguf.py", "--outfile", "test.gguf", "model"]
           try:
