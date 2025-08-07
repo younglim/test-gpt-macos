@@ -29,21 +29,15 @@ jobs:
       - name: Add llama binaries to PATH
         run: echo "${{ github.workspace }}/llama-bin/build/bin" >> $GITHUB_PATH
 
-      - name: Download model.bin and config.json
-        run: |
-          mkdir -p model
-          curl -L -o model/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
-          curl -L -o model/config.json https://huggingface.co/openai/gpt-oss-20b/resolve/main/config.json
-
       - name: Dry-run conversion (sanity check)
         run: |
           echo "Testing convert_hf_to_gguf script (expected to fail due to missing files)..."
           python - <<EOF
           import sys
           sys.argv = ["convert_hf_to_gguf.py", "--outfile", "test.gguf", "model"]
-          from convert_hf_to_gguf import main as convert_main
           try:
-              convert_main()
+              import convert_hf_to_gguf
+              convert_hf_to_gguf.main()
           except Exception as e:
               print("Expected failure:", e)
           EOF
