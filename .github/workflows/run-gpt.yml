@@ -1,45 +1,66 @@
-name: GPT‑OSS 20B via OpenRouter API (Node.js)
+name: Run GPT Model on macOS with Prepackaged Weights
 
 on:
   workflow_dispatch:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: macos-15  # Apple Silicon
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
         with:
-          node-version: 20
+          python-version: '3.12'
 
-      - name: Install dependencies
-        run: npm install openai axios
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
 
-      - name: Call GPT‑OSS via OpenRouter
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Install inference dependencies
         run: |
-          node <<'EOF'
-          import OpenAI from "openai";
-          import axios from "axios";
-          
-          const client = new OpenAI({
-            baseURL: "https://api.openrouter.ai/v1",
-            apiKey: process.env.OPENROUTER_API_KEY,
-          });
-          
-          async function main() {
-            const res = await client.chat.completions.create({
-              model: "openai/gpt-oss-20b",
-              messages: [{ role: "user", content: "Hello from CI via OpenRouter!" }],
-              max_new_tokens: 64,
-            });
-            console.log(res.choices[0].message.content);
-          }
-          
-          main().catch(console.error);
+          pip install transformers kernels torch accelerate
+
+      - name: Cache split model weight parts
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: gpt-oss-20b/metal/parts
+          key: gpt-oss-metal-parts-v1
+
+      - name: Download and split model weights (if cache miss)
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p gpt-oss-20b/metal
+          curl -L -o gpt-oss-20b/metal/model.bin https://huggingface.co/openai/gpt-oss-20b/resolve/main/metal/model.bin
+          mkdir -p gpt-oss-20b/metal/parts
+          split -b 1900m gpt-oss-20b/metal/model.bin gpt-oss-20b/metal/parts/model.bin.part_
+          rm gpt-oss-20b/metal/model.bin
+
+      - name: Reconstruct model.bin from cached parts
+        run: |
+          mkdir -p gpt-oss-20b/metal
+          cat gpt-oss-20b/metal/parts/model.bin.part_* > gpt-oss-20b/metal/model.bin
+          ls -lh gpt-oss-20b/metal/model.bin
+
+      - name: Run inference using Hugging Face Transformers
+        run: |
+          python - <<EOF
+          from transformers import pipeline
+          pipe = pipeline(
+              "text-generation",
+              model="openai/gpt-oss-20b",
+              torch_dtype="auto",
+              device_map="auto",
+          )
+          messages = [{"role": "user", "content": "Hello from GitHub Actions"}]
+          outputs = pipe(messages, max_new_tokens=64)
+          print(outputs[0]["generated_text"])
           EOF
